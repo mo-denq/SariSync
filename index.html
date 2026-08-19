@@ -13,6 +13,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#ff5f2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SariSync" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/assets/sarisync-icon.svg" />
   <title>SariSync — Shared Price Book</title>
   <script>
     /* Prevent Home from flashing at the top before a saved category-return
@@ -190,6 +195,12 @@
   <script src="src/js/pages/home.js?v=20260817-realtime-sync"></script>
   <script src="src/js/navigation.js?v=20260731-back-transition"></script>
   <script src="src/js/services/barcode.js?v=20260815-barcode-only"></script>
+  <script>
+    // Registers the minimal PWA worker so SariSync can launch in app-style mode.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
 </body>
 
 </html>

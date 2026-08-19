@@ -2621,6 +2621,29 @@ select {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+  Phone browsers can treat a fast second tap as a request to zoom the page.
+  This keeps buttons and links responsive without disabling the user's normal
+  pinch-to-zoom accessibility option.
+*/
+button,
+a {
+  touch-action: manipulation;
+}
+
+/*
+  iPhone and many Android browsers may automatically zoom into a text field
+  whose type is smaller than 16px. Keep form text at a readable 16px only on
+  touch-first devices, while desktop layouts keep their existing compact size.
+*/
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 button {
   transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease;
 }

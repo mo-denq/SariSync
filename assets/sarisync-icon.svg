@@ -1,0 +1,8 @@
+<!--
+  SariSync app icon used by the browser when the site is installed to a phone's
+  home screen. It is intentionally a simple vector so it remains sharp at all sizes.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#ff5f2e"/>
+  <text x="256" y="346" fill="#ffffff" font-family="Arial, sans-serif" font-size="260" font-weight="700" text-anchor="middle">₱</text>
+</svg>

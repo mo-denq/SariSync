@@ -11,6 +11,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#ff5f2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SariSync" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/assets/sarisync-icon.svg" />
   <title>SariSync — Sign in</title>
   <link rel="stylesheet" href="../../src/css/styles.css?v=20260808-account-setup" />
 </head>
@@ -28,6 +33,12 @@
   <script src="../../src/js/services/supabase-config.js?v=20260808-home-auth-guard"></script>
   <script src="../../src/js/services/page-transition.js?v=20260731-back-transition"></script>
   <script type="module" src="../../src/js/pages/auth.js?v=20260810-store-name-format"></script>
+  <script>
+    // Allows Home Screen installations started from the sign-in page too.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
 </body>
 
 </html>

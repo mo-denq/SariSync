@@ -1,0 +1,17 @@
+{
+  "name": "SariSync — Shared Price Book",
+  "short_name": "SariSync",
+  "description": "A family store's shared digital price book.",
+  "start_url": "/pages/auth/login.html",
+  "display": "standalone",
+  "background_color": "#f5f7f4",
+  "theme_color": "#ff5f2e",
+  "icons": [
+    {
+      "src": "/assets/sarisync-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
