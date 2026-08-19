@@ -329,7 +329,10 @@ async function continueToHome(storeAccess) {
     deviceName: storeAccess.full_name || user.user_metadata?.full_name || user.email
   });
 
-  window.location.assign('../../index.html');
+  // Use one explicit app-wide URL after login. This keeps the installed web
+  // app inside its own window instead of handing the user back to a browser tab.
+  const homeUrl = new URL('/index.html', window.location.origin);
+  window.location.replace(homeUrl.href);
 }
 
 document.addEventListener('click', event => {
