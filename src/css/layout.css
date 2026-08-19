@@ -1,0 +1,104 @@
+﻿/*
+  FILE: src/css/layout.css
+  PURPOSE: Defines the shared application shell and main page layout foundation.
+  BEGINNER NOTE: Layout rules position large page regions, not app behavior.
+*/
+
+.app-shell {
+  /* The shell is the device-sized frame. The white .app element below owns
+     vertical scrolling, which keeps the browser's outer page from growing. */
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(circle at 15% 0%, #fff6df 0, transparent 28rem), var(--canvas);
+  overflow: hidden;
+}
+
+.app {
+  width: min(100%, var(--content-max));
+  height: 100%;
+  min-height: 0;
+  background: var(--paper);
+  border-radius: 0 !important;
+  /* Reserve the fixed navigation height plus a small clearance for the raised
+     Add Product button. The nav itself still owns the device safe-area inset. */
+  padding:
+    calc(var(--space-md) + env(safe-area-inset-top))
+    var(--page-gutter)
+    calc(
+      var(--bottom-nav-height) +
+      var(--bottom-nav-bottom-gap) +
+      var(--bottom-nav-clearance) +
+      env(safe-area-inset-bottom)
+  );
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(91, 108, 103, .55) transparent;
+}
+
+/* Desktop browsers show a small scrollbar inside SariSync instead of at the
+   far right of the browser window. */
+.app::-webkit-scrollbar {
+  width: 8px;
+}
+
+.app::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app::-webkit-scrollbar-thumb {
+  background: rgba(91, 108, 103, .55);
+  border: 2px solid var(--paper);
+  border-radius: 999px;
+}
+
+.app::-webkit-scrollbar-thumb:hover {
+  background: rgba(64, 82, 77, .72);
+}
+
+/* Shared page hierarchy used by Home, Browse, Updates, and Settings. */
+.page-header {
+  min-height: 42px;
+  margin-bottom: var(--space-lg);
+}
+
+.screen-content {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+.topbar,
+.welcome-row,
+.section-heading,
+.quick-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* The Home brand header uses Flexbox above. Flexbox can override the browser's
+   normal [hidden] rule, so make this explicit: branding is visible on Home
+   only and disappears completely on every secondary page. */
+#appHeader[hidden] {
+  display: none !important;
+}
+
+/* A visible scroll bar is useful with a mouse. On touch devices, mobile
+   browsers already provide swipe scrolling, so keep the indicator unobtrusive. */
+@media (hover: none), (pointer: coarse) {
+  .app {
+    scrollbar-width: none;
+  }
+
+  .app::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}

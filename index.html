@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<!--
+    FILE: index.html | FOLDER: project root
+    HOME PAGE SHELL
+    This is the main price-book screen after a user signs in.
+    It contains the static HTML areas for the header, search bar, updates,
+    category cards, quick actions, full-page product views, and bottom navigation.
+    Dynamic Home behavior is in home.js; barcode.js adds the camera button.
+  -->
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ff5f2e" />
+  <title>SariSync — Shared Price Book</title>
+  <script>
+    /* Prevent Home from flashing at the top before a saved category-return
+       position is restored. This runs before the page body is painted. */
+    if (new URLSearchParams(window.location.search).get('restoreScroll') === 'category') {
+      document.documentElement.classList.add('restoring-category-scroll');
+      window.history.scrollRestoration = 'manual';
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('restoring-category-scroll');
+      }, 1500);
+    }
+  </script>
+  <link rel="stylesheet" href="src/css/styles.css?v=20260810-secondary-header" />
+</head>
+
+<body>
+  <!-- This gate is the only visible area until Supabase confirms that the
+       browser has a real signed-in session. Home remains hidden underneath. -->
+  <section id="homeAuthGuard" class="home-auth-guard" aria-live="polite">
+    <div class="home-auth-guard-card">
+      <div class="home-auth-spinner" aria-hidden="true"></div>
+      <p class="eyebrow">SECURE STORE ACCESS</p>
+      <h1 id="homeAuthTitle">Checking your account&hellip;</h1>
+      <p id="homeAuthMessage">Please wait while SariSync verifies your signed-in session.</p>
+      <button id="homeAuthRetry" class="home-auth-retry" type="button" hidden>Retry</button>
+    </div>
+  </section>
+
+  <!-- Shared icon sprite: every barcode action references this one symbol so
+       its scanner icon remains visually identical across the application. -->
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="barcodeScanIcon" viewBox="0 0 24 24">
+      <path d="M8 4H5a1 1 0 0 0-1 1v3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 9v6M10 8v8M13 9v6M16 8v8" />
+    </symbol>
+  </svg>
+
+  <main id="appShell" class="app-shell" hidden>
+    <section class="app" aria-label="SariSync digital price book">
+      <header id="appHeader" class="topbar page-header">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"><span>₱</span></div>
+          <div>
+            <p class="eyebrow" id="storeLabel">Bahay ni Aling Rosa</p>
+            <h1>SariSync</h1>
+          </div>
+        </div>
+        <button class="avatar" id="avatarInitials" aria-label="Open family profile">AR</button>
+      </header>
+
+      <div id="homePage" class="screen-content">
+        <section class="welcome-row">
+          <div>
+            <p class="home-date-time" id="homeDateTime" aria-live="polite">Monday, August 18 · 8:00 PM</p>
+            <p class="greeting"><span id="greetingText">Magandang umaga</span>, <span id="greetingName">Ana</span>!</p>
+            <p class="subtle">Your shared price book is up to date.</p>
+          </div>
+          <button class="sync-status" id="syncButton" type="button" aria-live="polite">
+            <span class="sync-dot"></span><span id="syncText">Synced</span>
+          </button>
+        </section>
+
+        <section class="search-area" aria-label="Product search">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" />
+            </svg>
+            <input id="searchInput" type="search" autocomplete="off" placeholder="Search item or scan barcode"
+              aria-label="Search products" />
+            <span id="barcodeFeature"></span>
+          </div>
+          <div id="searchResults" class="search-results" aria-live="polite"></div>
+        </section>
+
+        <section class="updates-section" aria-labelledby="updates-heading">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">Price pulse</span>
+              <h2 id="updates-heading">Recent price changes</h2>
+            </div>
+            <button class="text-button" id="viewUpdates" type="button">View all</button>
+          </div>
+          <div class="updates-scroll" id="updatesList"></div>
+        </section>
+
+        <section class="quick-section" aria-labelledby="quick-actions-heading">
+          <div class="section-heading quick-heading">
+            <div><span class="section-kicker">Shortcuts</span><h2 id="quick-actions-heading">Quick actions</h2></div>
+          </div>
+          <div class="quick-actions">
+            <button class="quick-action" id="quickUpdatePrice" type="button"><span class="quick-action-icon" aria-hidden="true">₱</span><span>Update price</span></button>
+            <button class="quick-action" id="quickAddProduct" type="button"><span class="quick-action-icon" aria-hidden="true">+</span><span>Add product</span></button>
+            <button class="quick-action" id="quickScanBarcode" type="button"><span class="quick-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#barcodeScanIcon"></use></svg></span><span>Scan barcode</span></button>
+          </div>
+        </section>
+
+        <section class="categories-section" aria-labelledby="categories-heading">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">Browse the book</span>
+              <h2 id="categories-heading">Categories</h2>
+            </div>
+            <button class="text-button" id="viewCategories" type="button">View all</button>
+          </div>
+          <div class="category-grid" id="categoryGrid"></div>
+        </section>
+
+        <section class="quick-section legacy-admin-actions" aria-hidden="true">
+          <div class="quick-card">
+            <div class="quick-icon">⇧</div>
+            <div><strong>Import price list</strong><span>Excel or CSV</span></div>
+            <button id="importButton" type="button" aria-label="Import a price list">›</button>
+          </div>
+          <div class="quick-card">
+            <div class="quick-icon export">↓</div>
+            <div><strong>Export backup</strong><span>Save a CSV copy</span></div>
+            <button id="exportButton" type="button" aria-label="Export a CSV backup">›</button>
+          </div>
+        </section>
+      </div>
+      <section id="secondaryPage" class="secondary-page screen-content" hidden aria-live="polite"></section>
+
+      <nav class="bottom-nav" aria-label="Main navigation">
+        <button class="nav-item active" type="button" data-nav="Home"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v9h-6v-6h-4v6H4Z"/></svg></span>Home</button>
+        <button class="nav-item" type="button" data-nav="Browse"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></span>Browse</button>
+        <button class="add-button" id="addButton" type="button" aria-label="Add a product">+</button>
+        <button class="nav-item" type="button" data-nav="Updates"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.35-5.65"/><path d="M20 4v6h-6"/></svg></span>Updates</button>
+        <button class="nav-item" type="button" data-nav="Settings"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.08-1l2-1.55-2-3.46-2.45 1A7 7 0 0 0 14.73 6L14.35 3h-4.7l-.38 3a7 7 0 0 0-1.74 1L5.08 6 3.08 9.45l2 1.55A7 7 0 0 0 5 12c0 .34.03.67.08 1l-2 1.55 2 3.46 2.45-1A7 7 0 0 0 9.27 18l.38 3h4.7l.38-3a7 7 0 0 0 1.74-1l2.45 1 2-3.46-2-1.55c.05-.33.08-.66.08-1Z"/></svg></span>Settings</button>
+      </nav>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <input id="importInput" type="file" accept=".csv,text/csv" hidden />
+  
+  <script src="src/js/services/supabase-config.js?v=20260808-home-auth-guard"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.6"></script>
+  <script src="src/js/constants/app-constants.js"></script>
+  <script src="src/js/models/category.js"></script>
+  <script src="src/js/models/product.js"></script>
+  <script src="src/js/services/data.js"></script>
+  <script src="src/js/repositories/product-repository.js?v=20260814-real-product-loading"></script>
+  <script src="src/js/services/utils.js?v=20260810-store-name-format"></script>
+  <script src="src/js/storage/local-storage.js"></script>
+  <script src="src/js/services/auth-session.js?v=20260808-home-auth-guard"></script>
+  <script src="src/js/services/family-access-service.js?v=20260810-family-access"></script>
+  <script src="src/js/state/store.js"></script>
+  <script src="src/js/services/responsive.js"></script>
+  <script src="src/js/services/search-service.js"></script>
+  <script src="src/js/services/page-transition.js?v=20260731-back-transition"></script>
+  <script src="src/js/components/toast.js"></script>
+  <script src="src/js/services/product-data-service.js?v=20260817-archive-retrieval"></script>
+  <script src="src/js/services/realtime-service.js?v=20260817-realtime-sync"></script>
+  <script src="src/js/services/profile-data-service.js?v=20260815-connected-profile"></script>
+  <script src="src/js/services/category-data-service.js?v=20260815-category-complete"></script>
+  <script src="src/js/services/device-service.js?v=20260815-device-attribution"></script>
+  <script src="src/js/services/csv-service.js?v=20260814-csv-status-refresh"></script>
+  <script src="src/js/components/product-card.js"></script>
+  <script src="src/js/components/page-header.js"></script>
+  <script src="src/js/components/product-form.js?v=20260815-phase10-complete"></script>
+  <script src="src/js/components/price-pulse.js?v=20260815-price-history-retry"></script>
+  <script src="src/js/components/category-preview.js"></script>
+  <script src="src/js/pages/browse.js?v=20260731-preserve-category-scroll"></script>
+  <script src="src/js/pages/updates.js?v=20260815-price-history-retry"></script>
+  <script src="src/js/pages/category-management.js?v=20260815-category-complete"></script>
+  <script src="src/js/pages/settings.js?v=20260817-archive-retrieval"></script>
+  <script src="src/js/pages/archived-products.js?v=20260817-archive-retrieval"></script>
+  <script src="src/js/pages/family-access.js?v=20260808-family-access"></script>
+  <script src="src/js/pages/profile.js"></script>
+  <script src="src/js/pages/product-details.js"></script>
+  <script src="src/js/pages/add-product.js"></script>
+  <script src="src/js/pages/update-price.js"></script>
+  <!-- Version marker makes browsers fetch the newest custom archive dialog. -->
+  <script src="src/js/pages/edit-product.js?v=20260817-archive-feedback"></script>
+  <script src="src/js/pages/home.js?v=20260817-realtime-sync"></script>
+  <script src="src/js/navigation.js?v=20260731-back-transition"></script>
+  <script src="src/js/services/barcode.js?v=20260815-barcode-only"></script>
+</body>
+
+</html>

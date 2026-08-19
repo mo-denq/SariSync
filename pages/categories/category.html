@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<!--
+    FILE: pages/categories/category.html
+    REUSABLE CATEGORY PAGE
+    This is one shared layout for every department, such as Beverages or
+    Canned Goods. category.js reads the category name from the page URL and
+    displays only the matching products.
+  -->
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ff5f2e" />
+  <title>SariSync — Category</title>
+  <link rel="stylesheet" href="../../src/css/styles.css?v=20260731-raised-navigation" />
+</head>
+
+<body>
+  <main class="app-shell">
+    <section class="app category-page" aria-label="SariSync category items">
+      <header class="category-topbar">
+        <a class="back-link" href="../../index.html?restoreScroll=category" aria-label="Back to previous Home position">←</a>
+        <div class="category-title-wrap">
+          <p class="eyebrow">PRICE BOOK CATEGORY</p>
+          <h1 id="categoryTitle">Category</h1>
+        </div>
+        <span id="categoryCount" class="count-chip"></span>
+      </header>
+
+      <section class="category-hero">
+        <span id="categoryAccent" class="category-accent" aria-hidden="true"></span>
+        <p id="categoryDescription">Find the latest prices in this category.</p>
+      </section>
+
+      <label class="category-search-input" for="itemSearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" />
+        </svg>
+        <input id="itemSearch" type="search" autocomplete="off" placeholder="Search this category" />
+      </label>
+
+      <section id="categoryItems" class="category-items" aria-live="polite"></section>
+    </section>
+  </main>
+  <script src="../../src/js/storage/local-storage.js"></script>
+  <script src="../../src/js/models/category.js"></script>
+  <script src="../../src/js/services/utils.js"></script>
+  <script src="../../src/js/services/responsive.js"></script>
+  <script src="../../src/js/services/search-service.js"></script>
+  <script src="../../src/js/services/page-transition.js?v=20260731-back-transition"></script>
+  <script src="../../src/js/pages/category.js?v=20260731-back-transition"></script>
+</body>
+
+</html>

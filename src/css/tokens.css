@@ -1,0 +1,39 @@
+﻿/*
+  FILE: src/css/tokens.css
+  PURPOSE: Stores shared fonts, colors, spacing, sizes, shadows, and radius values.
+  BEGINNER NOTE: A token is a reusable design value used by many screens.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+:root {
+  --ink: #183335;
+  --muted: #708082;
+  --paper: #fffdf8;
+  --canvas: #f3f0e9;
+  --line: #e7e4da;
+  --orange: #ff5f2e;
+  --orange-dark: #de4419;
+  --yellow: #ffc82e;
+  --mint: #dff4e7;
+  --green: #248950;
+  --red: #d84939;
+  --shadow: 0 16px 32px rgba(35, 48, 43, .09);
+  /* Shared responsive design system for every screen. */
+  --content-max: 560px;
+  --page-gutter: clamp(16px, 4vw, 24px);
+  --space-xs: clamp(6px, 1.6vw, 9px);
+  --space-sm: clamp(10px, 2.5vw, 14px);
+  --space-md: clamp(16px, 4vw, 22px);
+  --space-lg: clamp(24px, 6vw, 32px);
+  --card-radius: 17px;
+  --bottom-nav-height: 78px;
+  /* Match the floating navigation edges to cards and category content. */
+  --bottom-nav-side-gap: var(--page-gutter);
+  --bottom-nav-bottom-gap: clamp(26px, 5vw, 36px);
+  /* Space reserved above the raised Add Product button so the last page
+     control never sits underneath it. */
+  --bottom-nav-clearance: clamp(30px, 6vw, 40px);
+  --heading-size: var(--responsive-heading-size, clamp(20px, 5.4vw, 25px));
+  --price-size: var(--responsive-price-size, clamp(22px, 6.5vw, 30px));
+}

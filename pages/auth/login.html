@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<!--
+    FILE: pages/auth/login.html
+    LOGIN AND ACCOUNT-REGISTRATION PAGE
+    This page starts the app experience. auth.js renders the visible sign-in
+    and account-setup steps inside the empty authScreen section below.
+  -->
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ff5f2e" />
+  <title>SariSync — Sign in</title>
+  <link rel="stylesheet" href="../../src/css/styles.css?v=20260808-account-setup" />
+</head>
+
+<body>
+  <main class="app-shell">
+    <section class="app" aria-label="SariSync account access">
+      <section id="authScreen" class="auth-screen" aria-live="polite"></section>
+    </section>
+  </main>
+  <script src="../../src/js/constants/app-constants.js"></script>
+  <script src="../../src/js/services/utils.js?v=20260810-store-name-format"></script>
+  <script src="../../src/js/services/responsive.js"></script>
+  <script src="../../src/js/storage/local-storage.js"></script>
+  <script src="../../src/js/services/supabase-config.js?v=20260808-home-auth-guard"></script>
+  <script src="../../src/js/services/page-transition.js?v=20260731-back-transition"></script>
+  <script type="module" src="../../src/js/pages/auth.js?v=20260810-store-name-format"></script>
+</body>
+
+</html>
