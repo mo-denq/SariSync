@@ -196,6 +196,7 @@
   }
 
   async function importSelectedFile(selectedFile) {
+    window.SariSyncOfflinePriceBook?.requireOnlineForChange?.();
     if (!selectedFile) return;
     if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
       throw new Error('Choose a CSV file (.csv) to import.');
@@ -233,8 +234,9 @@
       try {
         await importSelectedFile(selectedFile);
       } catch (error) {
+        const fallback = 'Unable to import that CSV file.';
         reportImportStatus(
-          error?.message || 'Unable to import that CSV file.',
+          window.SariSyncFeedback?.messageFor(error, fallback) || fallback,
           'error'
         );
       } finally {

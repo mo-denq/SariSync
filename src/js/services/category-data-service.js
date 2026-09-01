@@ -19,6 +19,7 @@
   }
 
   async function saveCategory(category) {
+    window.SariSyncOfflinePriceBook?.requireOnlineForChange?.();
     const { data, error } = await client().rpc('save_category_for_current_owner', {
       p_category_id: category.id || null,
       p_name: category.name,
@@ -32,6 +33,7 @@
   // Keeps database wording from becoming a confusing technical error toast.
   function friendlyError(error) {
     const message = String(error?.message || 'Could not save category.');
+    const sharedMessage = window.SariSyncFeedback?.messageFor(error, null);
     if (/only the active store owner|permission denied/i.test(message)) {
       return new Error('Only the store owner can manage categories.');
     }
@@ -40,7 +42,7 @@
       const name = match ? match[1].trim() : 'This category';
       return new Error(`${name} already exists in this store.`);
     }
-    return new Error(message);
+    return new Error(sharedMessage || message);
   }
 
   window.SariSyncCategoryDataService = { getOwnerCategories, saveCategory };

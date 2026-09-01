@@ -50,6 +50,15 @@
     return userData.user ? data.session : null;
   }
 
+  /* This only reads the browser's existing Supabase session. It is used as a
+     temporary offline fallback; normal online opening still verifies the user
+     with Supabase through getSession() above. */
+  async function getCachedSession() {
+    const { data, error } = await getClient().auth.getSession();
+    if (error) throw error;
+    return data.session || null;
+  }
+
   function clearPrototypeSession() {
     window.SariSyncLocalStorage.remove(window.SariSyncLocalStorage.KEYS.SESSION);
   }
@@ -76,6 +85,7 @@
   window.SariSyncAuthSession = {
     clearPrototypeSession,
     getClient,
+    getCachedSession,
     getLoginPageUrl,
     getSession,
     signOut

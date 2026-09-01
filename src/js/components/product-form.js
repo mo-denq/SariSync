@@ -154,28 +154,46 @@
             bottleDeposit: optionalNumber(field('bottleDeposit'))
           };
 
+          let saveResult;
           if (isNew) {
-            await window.SariSyncProductDataService.addProductForCurrentUser(
+            saveResult = await window.SariSyncProductDataService.addProductForCurrentUser(
               databaseValues,
               selectedCategory.id
             );
           } else {
-            await window.SariSyncProductDataService.updateProductForCurrentUser(
+            saveResult = await window.SariSyncProductDataService.updateProductForCurrentUser(
               product.id,
               databaseValues,
               selectedCategory.id
             );
           }
 
-          await Promise.resolve(onSaved?.());
+          /* Show a queued edit immediately in this device's price book. The
+             database history is created later, at the moment it syncs. */
+          if (saveResult?.queued && product) {
+            window.SariSyncProductRepository.updateProduct(product.id, {
+              ...validation.product,
+              categoryId: selectedCategory.id,
+              updated: 'Pending sync',
+              updatedAt: new Date().toISOString(),
+              updatedBy: activeDeviceName
+            });
+          }
+
+          await Promise.resolve(onSaved?.(saveResult));
           window.SariSyncNavigation.goTo('Home');
-          window.SariSyncToast.show(isNew
+          window.SariSyncToast.show(saveResult?.queued
+            ? 'Saved on this device. It will sync when you reconnect.'
+            : isNew
             ? 'Product added to the shared price book'
             : 'Product details saved to the shared price book');
         } catch (error) {
-          window.SariSyncToast.show(error?.message || (isNew
+          const fallback = isNew
             ? 'Unable to add this product. Try again.'
-            : 'Unable to save these changes. Try again.'));
+            : 'Unable to save these changes. Try again.';
+          window.SariSyncToast.show(
+            window.SariSyncFeedback?.messageFor(error, fallback) || fallback
+          );
         } finally {
           saveButton.disabled = false;
           saveButton.textContent = originalLabel;

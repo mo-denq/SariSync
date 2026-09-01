@@ -162,6 +162,9 @@
   <script src="src/js/repositories/product-repository.js?v=20260814-real-product-loading"></script>
   <script src="src/js/services/utils.js?v=20260810-store-name-format"></script>
   <script src="src/js/storage/local-storage.js"></script>
+  <script src="src/js/services/offline-price-book-service.js?v=20260827-offline-cache"></script>
+  <script src="src/js/services/offline-edit-queue-service.js?v=20260829-offline-product-edits"></script>
+  <script src="src/js/services/feedback-service.js?v=20260822-friendly-errors"></script>
   <script src="src/js/services/auth-session.js?v=20260808-home-auth-guard"></script>
   <script src="src/js/services/family-access-service.js?v=20260810-family-access"></script>
   <script src="src/js/state/store.js"></script>
@@ -194,7 +197,10 @@
   <script src="src/js/pages/edit-product.js?v=20260817-archive-feedback"></script>
   <script src="src/js/pages/home.js?v=20260817-realtime-sync"></script>
   <script src="src/js/navigation.js?v=20260731-back-transition"></script>
-  <script src="src/js/services/barcode.js?v=20260815-barcode-only"></script>
+  <!-- Barcode fallback for browsers without the built-in BarcodeDetector.
+       The version is pinned so a future CDN release cannot silently alter the scanner. -->
+  <script src="https://unpkg.com/@zxing/browser@0.2.1/umd/zxing-browser.min.js"></script>
+  <script src="src/js/services/barcode.js?v=20260902-zxing-fallback"></script>
   <script>
     // Registers the minimal PWA worker so SariSync can launch in app-style mode.
     if ('serviceWorker' in navigator) {

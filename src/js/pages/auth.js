@@ -56,6 +56,21 @@ function authStatus(message = '', type = 'error') {
     : '';
 }
 
+/* Reuses the same accessible Show/Hide control wherever a password is typed.
+   The password stays hidden by default. This only changes what is visible on
+   the current screen; it does not change, save, or send the password. */
+function passwordField(id, label, autocomplete, placeholder) {
+  return `<div class="form-row">
+    <label for="${id}">${label}</label>
+    <div class="auth-password-control">
+      <input id="${id}" required autocomplete="${autocomplete}" type="password" minlength="8" placeholder="${placeholder}" />
+      <button class="auth-password-toggle" data-password-toggle="${id}" type="button" aria-label="Show password" aria-pressed="false" title="Show password">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
 function accountSetupChoices(message = '') {
   const personName = escapeHtml(activeUser?.user_metadata?.full_name || activeUser?.email || 'there');
   return `${brand()}${back('choice')}
@@ -87,7 +102,7 @@ function render() {
       <p class="auth-copy">Log in with the email address and password for your SariSync account.</p>
       <form id="loginForm" class="auth-form-card">
         <div class="form-row"><label for="loginEmail">EMAIL ADDRESS</label><input id="loginEmail" required autocomplete="email" inputmode="email" type="email" placeholder="you@example.com" /></div>
-        <div class="form-row"><label for="loginPassword">PASSWORD</label><input id="loginPassword" required autocomplete="current-password" type="password" minlength="8" placeholder="Enter your password" /></div>
+        ${passwordField('loginPassword', 'PASSWORD', 'current-password', 'Enter your password')}
         <button class="save-button" type="submit">Log in</button>
       </form>
       <div class="auth-actions"><button class="auth-secondary" data-screen="register" type="button">Create an account<small>Create your personal SariSync login</small></button></div>`;
@@ -101,8 +116,8 @@ function render() {
         <div class="form-row"><label for="fullName">FULL NAME</label><input id="fullName" data-title-case required autocomplete="name" placeholder="e.g. Maria Santos" /></div>
         <div class="form-row"><label for="mobileNumber">MOBILE NUMBER (OPTIONAL)</label><input id="mobileNumber" autocomplete="tel" inputmode="tel" type="tel" placeholder="09XX XXX XXXX" /></div>
         <div class="form-row"><label for="registerEmail">EMAIL ADDRESS</label><input id="registerEmail" required autocomplete="email" inputmode="email" type="email" placeholder="you@example.com" /></div>
-        <div class="form-row"><label for="registerPassword">PASSWORD</label><input id="registerPassword" required autocomplete="new-password" type="password" minlength="8" placeholder="At least 8 characters" /></div>
-        <div class="form-row"><label for="confirmPassword">CONFIRM PASSWORD</label><input id="confirmPassword" required autocomplete="new-password" type="password" minlength="8" placeholder="Enter your password again" /></div>
+        ${passwordField('registerPassword', 'PASSWORD', 'new-password', 'At least 8 characters')}
+        ${passwordField('confirmPassword', 'CONFIRM PASSWORD', 'new-password', 'Enter your password again')}
         <button class="save-button" type="submit">Create account</button>
       </form>`;
   }
@@ -174,9 +189,20 @@ function setLoading(button, loading, label) {
   button.textContent = label;
 }
 
-function showFormError(form, message) {
-  form.querySelector('.auth-status')?.remove();
-  form.insertAdjacentHTML('afterbegin', authStatus(message));
+function showFormError(form, error, fallback) {
+  /* A failed sign-in must never create a second JavaScript error. During a
+     page re-render the original form can be gone, so safely fall back to the
+     permanent auth screen and still show a clear message to the user. */
+  const target = form?.querySelector && form?.insertAdjacentHTML
+    ? form
+    : authScreen;
+  const message = fallback === undefined && typeof error === 'string'
+    ? error
+    : (window.SariSyncFeedback?.messageFor(error, fallback)
+      || fallback
+      || 'Something went wrong. Please try again.');
+  target.querySelector('.auth-status')?.remove();
+  target.insertAdjacentHTML('afterbegin', authStatus(message));
 }
 
 function bindForms() {
@@ -186,21 +212,41 @@ function bindForms() {
     });
   });
 
+  document.querySelectorAll('[data-password-toggle]').forEach(button => {
+    button.addEventListener('click', () => {
+      const input = document.getElementById(button.dataset.passwordToggle);
+      if (!input) return;
+
+      const willShowPassword = input.type === 'password';
+      input.type = willShowPassword ? 'text' : 'password';
+      button.setAttribute('aria-label', willShowPassword ? 'Hide password' : 'Show password');
+      button.setAttribute('title', willShowPassword ? 'Hide password' : 'Show password');
+      button.setAttribute('aria-pressed', String(willShowPassword));
+      button.classList.toggle('is-visible', willShowPassword);
+      input.focus({ preventScroll: true });
+    });
+  });
+
   document.getElementById('loginForm')?.addEventListener('submit', async event => {
     event.preventDefault();
     const button = event.currentTarget.querySelector('button[type="submit"]');
     setLoading(button, true, 'Logging in…');
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error || !data.user) {
-      showFormError(event.currentTarget, 'Unable to log in. Check your email address and password.');
+      if (error || !data.user) {
+        showFormError(event.currentTarget, error, 'Unable to log in. Check your email address and password.');
+        setLoading(button, false, 'Log in');
+        return;
+      }
+
+      await routeSignedInUser(data.user);
+    } catch (error) {
+      showFormError(event.currentTarget, error, 'Unable to log in. Please try again.');
       setLoading(button, false, 'Log in');
-      return;
     }
-
-    await routeSignedInUser(data.user);
   });
 
   document.getElementById('registerForm')?.addEventListener('submit', async event => {
@@ -229,7 +275,7 @@ function bindForms() {
     });
 
     if (error) {
-      showFormError(form, 'Unable to create the account: ' + error.message);
+      showFormError(form, error, 'Unable to create the account. Please try again.');
       setLoading(button, false, 'Create account');
       return;
     }
@@ -256,7 +302,7 @@ function bindForms() {
       screen = 'store-code';
       render();
     } catch (error) {
-      showFormError(form, error.message || 'Unable to create your store. Please try again.');
+      showFormError(form, error, 'Unable to create your store. Please try again.');
       setLoading(button, false, 'Create store');
     }
   });
@@ -271,7 +317,7 @@ function bindForms() {
       completedStore = await joinStore(document.getElementById('joinStoreCode').value.trim());
       await continueToHome(completedStore);
     } catch (error) {
-      showFormError(form, error.message || 'Unable to join that store. Please try again.');
+      showFormError(form, error, 'Unable to join that store. Please try again.');
       setLoading(button, false, 'Join store');
     }
   });

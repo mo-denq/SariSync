@@ -78,6 +78,38 @@ function applyLoadedPriceBook(priceBook, nextPriceUpdates = [], nextPriceHistory
     window.SariSyncLocalStorage.KEYS.PRODUCTS,
     priceBook.products
   );
+
+  // Save a device-only fallback after every successful cloud load. The cache
+  // is scoped to the store code so it cannot be reused for another store.
+  window.SariSyncOfflinePriceBook?.savePriceBook?.({
+    storeCode: appState.getSession()?.storeCode,
+    priceBook,
+    recentPriceUpdates: nextPriceUpdates
+  });
+}
+
+function setConnectionStatus({ offline = false, savedAt = null } = {}) {
+  const button = $('syncButton');
+  const label = $('syncText');
+  if (!button || !label) return;
+
+  button.classList.toggle('is-offline', offline);
+  button.disabled = offline;
+  button.title = offline ? 'Offline: showing the latest saved copy on this device.' : '';
+  label.textContent = offline ? 'Offline' : 'Synced';
+
+  if (offline && savedAt) {
+    window.SariSyncToast?.show(`Offline: showing prices saved ${window.SariSyncOfflinePriceBook.formatSavedAt(savedAt)}.`);
+  }
+}
+
+function showCachedPriceBook(cached) {
+  applyLoadedPriceBook(cached.priceBook, cached.recentPriceUpdates || []);
+  renderHome();
+  applySessionDisplay();
+  $('homeAuthGuard').hidden = true;
+  $('appShell').hidden = false;
+  setConnectionStatus({ offline: true, savedAt: cached.savedAt });
 }
 
 /* Price Pulse is a helpful dashboard section, but it must not stop the entire
@@ -127,10 +159,39 @@ async function refreshPriceBookAfterCsvImport(event) {
 
 /* Reload the shared Supabase data after one product is added so Home, Browse,
    and category pages use the same real list immediately. */
-async function refreshPriceBookAfterProductSave() {
+async function refreshPriceBookAfterProductSave(saveResult = null) {
+  if (saveResult?.queued) {
+    /* Keep the visible offline edit in the saved device copy. The outbox will
+       call Supabase after reconnection, then Home reloads the official copy. */
+    window.SariSyncOfflinePriceBook?.savePriceBook?.({
+      storeCode: appState.getSession()?.storeCode,
+      priceBook: { categories, products },
+      recentPriceUpdates: priceUpdates
+    });
+    renderHome();
+    setConnectionStatus({ offline: true });
+    return;
+  }
+
   const { priceBook, recentPriceUpdates, priceHistoryError: historyError } = await loadPriceBookAndPulse();
   applyLoadedPriceBook(priceBook, recentPriceUpdates, historyError);
   renderHome();
+}
+
+/* Runs after a normal cloud load or an online event. It sends each stored
+   existing-product edit through the same protected Supabase function used by
+   a normal Save changes click, then reloads the official store price book. */
+async function syncPendingOfflineEdits() {
+  const result = await window.SariSyncOfflineEditQueue?.flushForCurrentUser?.();
+  if (!result?.syncedCount) return result;
+
+  const { priceBook, recentPriceUpdates, priceHistoryError: historyError } = await loadPriceBookAndPulse();
+  applyLoadedPriceBook(priceBook, recentPriceUpdates, historyError);
+  renderHome();
+  window.SariSyncToast?.show(
+    `${result.syncedCount} offline ${result.syncedCount === 1 ? 'change' : 'changes'} synced to the shared price book.`
+  );
+  return result;
 }
 
 /* REAL-TIME STORE REFRESH
@@ -236,7 +297,13 @@ async function checkHomeAuthentication() {
   let session;
   try {
     session = await window.SariSyncAuthSession.getSession();
-  } catch {
+  } catch (error) {
+    const cachedSession = await window.SariSyncAuthSession.getCachedSession().catch(() => null);
+    const cached = window.SariSyncOfflinePriceBook?.getCachedPriceBook?.(appState.getSession()?.storeCode);
+    if (cachedSession && cached && window.SariSyncOfflinePriceBook?.isLikelyNetworkError?.(error)) {
+      showCachedPriceBook(cached);
+      return;
+    }
     showAuthGuardError();
     return;
   }
@@ -262,12 +329,27 @@ async function checkHomeAuthentication() {
     applySessionDisplay();
     $('homeAuthGuard').hidden = true;
     $('appShell').hidden = false;
+    setConnectionStatus();
+
+    try {
+      await syncPendingOfflineEdits();
+    } catch (error) {
+      /* The edit remains in the device queue if a reconnect is brief or
+         unstable. The next successful connection will try it again. */
+      console.warn('Offline changes could not sync yet:', error);
+    }
 
     /* Registering the device is a helpful audit detail, not a condition for
        looking up prices. If the five-device limit is reached, Home remains
        usable and a later product edit simply records no device ID. */
     window.SariSyncDeviceService?.ensureCurrentDevice?.().catch(error => {
       console.warn('Device registration could not finish:', error);
+      window.SariSyncToast?.show(
+        window.SariSyncFeedback?.messageFor(
+          error,
+          'This device could not be registered. Price lookup still works.'
+        )
+      );
     });
 
     // A failed live connection should never prevent price lookup. The app can
@@ -275,11 +357,25 @@ async function checkHomeAuthentication() {
     window.SariSyncRealtime?.start?.({ onStoreChange: refreshPriceBookFromRealtime })
       .catch(error => console.warn('Real-time price-book sync could not start:', error));
   } catch (error) {
+    const cached = window.SariSyncOfflinePriceBook?.getCachedPriceBook?.(appState.getSession()?.storeCode);
+    if (cached && window.SariSyncOfflinePriceBook?.isLikelyNetworkError?.(error)) {
+      showCachedPriceBook(cached);
+      return;
+    }
     showPriceBookLoadError(error);
   }
 }
 
 $('homeAuthRetry').addEventListener('click', checkHomeAuthentication);
+window.addEventListener('online', () => {
+  if (!$('appShell')?.hidden) {
+    window.SariSyncToast?.show('Back online. Refreshing your price book...');
+    checkHomeAuthentication();
+  }
+});
+window.addEventListener('offline', () => {
+  if (!$('appShell')?.hidden) setConnectionStatus({ offline: true });
+});
 document.addEventListener('sariSync:csv-import-status', event => {
   showCsvImportStatus(event.detail);
 });

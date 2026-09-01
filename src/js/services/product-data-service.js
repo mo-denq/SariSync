@@ -152,6 +152,7 @@
     store, checks their membership, and verifies the category belongs there.
   */
   async function addProductForCurrentUser(product, categoryId) {
+    window.SariSyncOfflinePriceBook?.requireOnlineForChange?.();
     const client = window.SariSyncAuthSession?.getClient?.();
     if (!client) {
       throw new Error('Your signed-in account is not ready. Refresh and try again.');
@@ -178,47 +179,82 @@
     The browser never updates products directly, so Price Pulse cannot be
     accidentally skipped.
   */
-  async function updateProductForCurrentUser(productId, product, categoryId) {
-    const client = window.SariSyncAuthSession?.getClient?.();
-    if (!client) {
-      throw new Error('Your signed-in account is not ready. Refresh and try again.');
-    }
-
-    /* A registered device is optional for the database function, but asking
-       for it here lets future Price Pulse rows say which family device saved
-       the change. A temporary device-service issue must not block a price
-       correction, so the safe fallback remains null. */
-    let deviceId = null;
-    try {
-      const device = await window.SariSyncDeviceService?.ensureCurrentDevice?.();
-      deviceId = device?.id || null;
-    } catch (error) {
-      console.warn('Device attribution is unavailable for this update:', error);
-    }
-
-    const { data, error } = await client.rpc('update_product_for_current_user', {
-      p_product_id: productId,
-      p_item_name: product.name,
-      p_category_id: categoryId,
-      p_retail_price: product.retail,
-      p_barcode: product.barcode || null,
-      p_cost_price: product.costPrice,
-      p_wholesale_price: product.wholesale,
-      p_bottle_deposit: product.bottleDeposit,
-      p_notes: product.notes || null,
-      p_photo_url: null,
-      p_change_note: null,
-      p_device_id: deviceId
+  async function queueProductUpdateForLater(productId, product, categoryId) {
+    const cachedSession = await window.SariSyncAuthSession?.getCachedSession?.();
+    const queuedEdit = window.SariSyncOfflineEditQueue?.queueProductUpdate?.({
+      storeCode: window.SariSyncState?.getSession?.()?.storeCode,
+      userId: cachedSession?.user?.id,
+      productId,
+      product,
+      categoryId
     });
 
-    if (error) throw error;
-    return Array.isArray(data) ? data[0] : data;
+    if (!queuedEdit) {
+      throw new Error('This change could not be saved offline. Reconnect and try again.');
+    }
+
+    return { queued: true, queueId: queuedEdit.id };
+  }
+
+  async function updateProductForCurrentUser(productId, product, categoryId, options = {}) {
+    /* An existing product has a permanent database ID. When the internet is
+       temporarily unavailable, save this edit in the device-only outbox. The
+       existing protected RPC will still validate it after reconnection. */
+    if (!options.skipOfflineQueue && window.SariSyncOfflinePriceBook?.isOffline?.()) {
+      return queueProductUpdateForLater(productId, product, categoryId);
+    }
+
+    try {
+      const client = window.SariSyncAuthSession?.getClient?.();
+      if (!client) {
+        throw new Error('Your signed-in account is not ready. Refresh and try again.');
+      }
+
+      /* A registered device is optional for the database function, but asking
+         for it here lets future Price Pulse rows say which family device saved
+         the change. A temporary device-service issue must not block a price
+         correction, so the safe fallback remains null. */
+      let deviceId = null;
+      try {
+        const device = await window.SariSyncDeviceService?.ensureCurrentDevice?.();
+        deviceId = device?.id || null;
+      } catch (error) {
+        console.warn('Device attribution is unavailable for this update:', error);
+      }
+
+      const { data, error } = await client.rpc('update_product_for_current_user', {
+        p_product_id: productId,
+        p_item_name: product.name,
+        p_category_id: categoryId,
+        p_retail_price: product.retail,
+        p_barcode: product.barcode || null,
+        p_cost_price: product.costPrice,
+        p_wholesale_price: product.wholesale,
+        p_bottle_deposit: product.bottleDeposit,
+        p_notes: product.notes || null,
+        p_photo_url: null,
+        p_change_note: null,
+        p_device_id: deviceId
+      });
+
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    } catch (error) {
+      /* Some phones still report navigator.onLine as true for a few seconds
+         after losing mobile data. Treat only a connection error as offline;
+         validation and permission errors must remain visible to the user. */
+      if (!options.skipOfflineQueue && window.SariSyncOfflinePriceBook?.isLikelyNetworkError?.(error)) {
+        return queueProductUpdateForLater(productId, product, categoryId);
+      }
+      throw error;
+    }
   }
 
   /* Archives instead of permanently deleting an item. The database function
      confirms that the signed-in person is the active store owner before it
      changes is_active to false. */
   async function archiveProductForCurrentUser(productId) {
+    window.SariSyncOfflinePriceBook?.requireOnlineForChange?.();
     const client = window.SariSyncAuthSession?.getClient?.();
     if (!client) {
       throw new Error('Your signed-in account is not ready. Refresh and try again.');
@@ -259,6 +295,7 @@
      The database checks ownership and the product's category before changing
      the item back to active. */
   async function restoreProductForCurrentOwner(productId) {
+    window.SariSyncOfflinePriceBook?.requireOnlineForChange?.();
     const client = window.SariSyncAuthSession?.getClient?.();
     if (!client) {
       throw new Error('Your signed-in account is not ready. Refresh and try again.');

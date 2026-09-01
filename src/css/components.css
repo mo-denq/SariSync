@@ -104,6 +104,19 @@
   background: var(--green);
 }
 
+/* Offline does not mean the price book disappeared. It means SariSync is
+   showing the latest saved copy on this device until it reconnects. */
+.sync-status.is-offline {
+  background: #fff0e8;
+  color: var(--orange);
+  cursor: default;
+  opacity: 1;
+}
+
+.sync-status.is-offline .sync-dot {
+  background: var(--orange);
+}
+
 .search-box {
   height: 55px;
   border: 1.5px solid var(--line);
@@ -1729,8 +1742,34 @@
 }
 
 .product-mark {
+  /* The three strokes are positioned explicitly below. This prevents the
+     decorative product icon from appearing too high in a category list row. */
+  position: relative;
   width: 34px;
   height: 34px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.product-mark i {
+  position: absolute;
+  left: 9px;
+  width: 16px;
+  height: 2px;
+}
+
+.product-mark i:nth-child(1) {
+  top: 11px;
+}
+
+.product-mark i:nth-child(2) {
+  top: 16px;
+  width: 12px;
+}
+
+.product-mark i:nth-child(3) {
+  top: 21px;
+  width: 8px;
 }
 
 .product-mark i,
@@ -1741,12 +1780,10 @@
   background: rgba(35, 63, 64, .58);
 }
 
-.product-mark i:nth-child(2),
 .detail-mark i:nth-child(2) {
   width: 70%;
 }
 
-.product-mark i:nth-child(3),
 .detail-mark i:nth-child(3) {
   width: 48%;
 }
@@ -2512,6 +2549,52 @@
 .auth-status--info {
   background: #edf6ef;
   color: #31704a;
+}
+
+/* Passwords remain masked unless the person intentionally presses the eye.
+   The button is inside the field, but it has its own 44px touch target so it
+   stays easy to use on a phone. */
+.auth-password-control {
+  position: relative;
+}
+
+.auth-password-control input {
+  width: 100%;
+  padding-right: 56px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #65736f;
+  cursor: pointer;
+}
+
+.auth-password-toggle:hover,
+.auth-password-toggle:focus-visible,
+.auth-password-toggle.is-visible {
+  background: #fff0e9;
+  color: var(--orange);
+  outline: none;
+}
+
+.auth-password-toggle svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .auth-text-button {

@@ -154,6 +154,21 @@ test('Search Service finds partial text, categories, and exact barcodes', () => 
   assert.equal(search.findByBarcode(products, ''), null);
 });
 
+test('Barcode scanner keeps product formats and has a cross-browser fallback', () => {
+  const barcodeSource = fs.readFileSync(
+    path.join(projectRoot, 'src/js/services/barcode.js'),
+    'utf8'
+  );
+  const homeHtml = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+
+  assert.match(barcodeSource, /PRODUCT_BARCODE_FORMATS/);
+  assert.match(barcodeSource, /EAN_13/);
+  assert.match(barcodeSource, /BrowserMultiFormatOneDReader/);
+  assert.match(barcodeSource, /openFallbackScanner/);
+  assert.doesNotMatch(barcodeSource, /QR_CODE/);
+  assert.match(homeHtml, /@zxing\/browser@0\.2\.1/);
+});
+
 test('CSV Service preserves column order and blank optional fields', () => {
   resetBrowserWindow();
   loadFresh('src/js/constants/app-constants.js');
@@ -347,6 +362,107 @@ test('Local Storage reads, saves, removes, and uses safe JSON fallbacks', () => 
   assert.equal(storage.readJson(storage.KEYS.SESSION, null), null);
 });
 
+test('Offline price-book cache keeps one store saved copy separate from another', () => {
+  const savedValues = new Map();
+  global.localStorage = {
+    getItem(key) { return savedValues.has(key) ? savedValues.get(key) : null; },
+    setItem(key, value) { savedValues.set(key, String(value)); },
+    removeItem(key) { savedValues.delete(key); }
+  };
+  const originalNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { onLine: false }
+  });
+  resetBrowserWindow();
+  loadFresh('src/js/storage/local-storage.js');
+  loadFresh('src/js/services/offline-price-book-service.js');
+
+  const offline = window.SariSyncOfflinePriceBook;
+  assert.equal(offline.savePriceBook({
+    storeCode: '4yz-a1b2c3d4',
+    priceBook: { products: [{ name: 'RICE', retail: 60 }], categories: [{ name: 'PANTRY' }] },
+    recentPriceUpdates: [{ productId: 'rice-1' }]
+  }), true);
+  assert.equal(offline.getCachedPriceBook('OTHER-STORE'), null);
+
+  const cached = offline.getCachedPriceBook('4YZ-A1B2C3D4');
+  assert.equal(cached.priceBook.products[0].name, 'RICE');
+  cached.priceBook.products[0].name = 'CHANGED ONLY IN TEST';
+  assert.equal(offline.getCachedPriceBook('4YZ-A1B2C3D4').priceBook.products[0].name, 'RICE');
+  assert.equal(offline.isLikelyNetworkError(new Error('Failed to fetch')), true);
+  assert.throws(() => offline.requireOnlineForChange(), /You are offline/);
+  if (originalNavigator) Object.defineProperty(global, 'navigator', originalNavigator);
+  else delete global.navigator;
+});
+
+test('Offline edit queue keeps only the latest unsent edit for one product and account', () => {
+  const savedValues = new Map();
+  global.localStorage = {
+    getItem(key) { return savedValues.has(key) ? savedValues.get(key) : null; },
+    setItem(key, value) { savedValues.set(key, String(value)); },
+    removeItem(key) { savedValues.delete(key); }
+  };
+  resetBrowserWindow();
+  loadFresh('src/js/storage/local-storage.js');
+  loadFresh('src/js/services/offline-edit-queue-service.js');
+
+  const queue = window.SariSyncOfflineEditQueue;
+  queue.queueProductUpdate({
+    storeCode: '4yz-a1b2c3d4', userId: 'nida-id', productId: 'carrots-id',
+    categoryId: 'vegetables-id', product: { name: 'CARROTS 1 KILO', retail: 130 }
+  });
+  queue.queueProductUpdate({
+    storeCode: '4yz-a1b2c3d4', userId: 'nida-id', productId: 'carrots-id',
+    categoryId: 'vegetables-id', product: { name: 'CARROTS 1 KILO', retail: 135 }
+  });
+
+  const saved = queue.readQueue('4YZ-A1B2C3D4', 'nida-id');
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].product.retail, 135);
+  assert.equal(queue.readQueue('4YZ-A1B2C3D4', 'other-account').length, 0);
+});
+
+test('Product edits are queued locally instead of calling Supabase while offline', async () => {
+  const savedValues = new Map();
+  global.localStorage = {
+    getItem(key) { return savedValues.has(key) ? savedValues.get(key) : null; },
+    setItem(key, value) { savedValues.set(key, String(value)); },
+    removeItem(key) { savedValues.delete(key); }
+  };
+  const originalNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { onLine: false }
+  });
+  resetBrowserWindow();
+  loadFresh('src/js/storage/local-storage.js');
+  loadFresh('src/js/services/offline-price-book-service.js');
+  loadFresh('src/js/services/offline-edit-queue-service.js');
+  window.SariSyncState = {
+    getSession: () => ({ storeCode: '4YZ-A1B2C3D4' })
+  };
+  window.SariSyncAuthSession = {
+    async getCachedSession() { return { user: { id: 'nida-id' } }; },
+    getClient() { throw new Error('Supabase must not be called while offline'); }
+  };
+  loadFresh('src/js/services/product-data-service.js');
+
+  const result = await window.SariSyncProductDataService.updateProductForCurrentUser(
+    'carrots-id',
+    { name: 'CARROTS 1 KILO', barcode: '', costPrice: null, retail: 135, wholesale: null, bottleDeposit: null, notes: '' },
+    'vegetables-id'
+  );
+
+  assert.equal(result.queued, true);
+  assert.equal(
+    window.SariSyncOfflineEditQueue.readQueue('4YZ-A1B2C3D4', 'nida-id')[0].product.retail,
+    135
+  );
+  if (originalNavigator) Object.defineProperty(global, 'navigator', originalNavigator);
+  else delete global.navigator;
+});
+
 test('Shared name helpers and Category Preview preserve Home display rules', () => {
   resetBrowserWindow();
   loadFresh('src/js/services/utils.js');
@@ -434,6 +550,7 @@ test('Auth Session verifies a Supabase user and reuses one browser client', asyn
   loadFresh('src/js/services/auth-session.js');
 
   assert.equal(await window.SariSyncAuthSession.getSession(), expectedSession);
+  assert.equal(await window.SariSyncAuthSession.getCachedSession(), expectedSession);
   await window.SariSyncAuthSession.signOut();
   assert.equal(createClientCalls, 1);
   assert.equal(signOutCalls, 1);
@@ -444,6 +561,51 @@ test('Auth Session verifies a Supabase user and reuses one browser client', asyn
     ),
     null
   );
+});
+
+test('Friendly feedback protects people from technical errors and login crashes', () => {
+  resetBrowserWindow();
+  global.navigator = { onLine: true };
+  loadFresh('src/js/services/feedback-service.js');
+
+  assert.equal(
+    window.SariSyncFeedback.messageFor(
+      new Error('Invalid login credentials'),
+      'Unable to log in.'
+    ),
+    'Unable to log in. Check your email address and password.'
+  );
+  assert.match(
+    window.SariSyncFeedback.messageFor(
+      new Error('permission denied for table store_members'),
+      'Could not save.'
+    ),
+    /do not have permission/i
+  );
+
+  const authSource = fs.readFileSync(
+    path.join(projectRoot, 'src/js/pages/auth.js'),
+    'utf8'
+  );
+  assert.match(authSource, /const target = form\?\.querySelector/);
+  assert.match(authSource, /try \{[\s\S]*signInWithPassword/);
+});
+
+test('Authentication screens provide an accessible Show or Hide password control', () => {
+  const authSource = fs.readFileSync(
+    path.join(projectRoot, 'src/js/pages/auth.js'),
+    'utf8'
+  );
+  const componentSource = fs.readFileSync(
+    path.join(projectRoot, 'src/css/components.css'),
+    'utf8'
+  );
+
+  assert.match(authSource, /function passwordField/);
+  assert.match(authSource, /data-password-toggle/);
+  assert.match(authSource, /aria-label="Show password"/);
+  assert.match(authSource, /'Hide password'/);
+  assert.match(componentSource, /\.auth-password-toggle/);
 });
 
 test('Home starts behind an authentication gate with a Retry state', () => {
