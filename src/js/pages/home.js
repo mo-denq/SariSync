@@ -110,6 +110,7 @@ function showCachedPriceBook(cached) {
   $('homeAuthGuard').hidden = true;
   $('appShell').hidden = false;
   setConnectionStatus({ offline: true, savedAt: cached.savedAt });
+  openRequestedProduct();
 }
 
 /* Price Pulse is a helpful dashboard section, but it must not stop the entire
@@ -338,6 +339,7 @@ async function checkHomeAuthentication() {
          unstable. The next successful connection will try it again. */
       console.warn('Offline changes could not sync yet:', error);
     }
+    openRequestedProduct();
 
     /* Registering the device is a helpful audit detail, not a condition for
        looking up prices. If the five-device limit is reached, Home remains
@@ -489,6 +491,24 @@ function renderHome() {
   });
 }
 
+let productReturnCategory = null;
+
+// Consume category links only after authentication and store data are ready.
+function openRequestedProduct() {
+  const url = new URL(window.location.href);
+  const id = url.searchParams.get('product');
+  if (!id) return;
+  productReturnCategory = url.searchParams.get('fromCategory');
+  url.searchParams.delete('product');
+  url.searchParams.delete('fromCategory');
+  window.history.replaceState(window.history.state, '', url);
+  if (!window.SariSyncProductRepository.findProductById(id)) {
+    window.SariSyncToast.show('This product is no longer available in your active price book.');
+    return;
+  }
+  showProduct(id);
+}
+
 function showProduct(id) {
   const product = window.SariSyncProductRepository.findProductById(id);
   if (!product) return;
@@ -498,8 +518,15 @@ function showProduct(id) {
     screen: $('secondaryPage'),
     homePage: $('homePage'),
     peso,
-    setHomeHeader
+    setHomeHeader,
+    onBack: productReturnCategory ? () => {
+      const name = productReturnCategory;
+      productReturnCategory = null;
+      openCategoryPage(name);
+    } : null
   });
+  // Begin lookup at its heading even if Home was scrolled to Categories.
+  $('appShell')?.querySelector('.app')?.scrollTo({ top: 0, behavior: 'auto' });
 }
 function searchProducts(query) {
   if (!String(query).trim()) {
@@ -552,6 +579,7 @@ function restoreCategoryReturnPosition() {
   });
 }
 function renderSecondaryPage(page) {
+  productReturnCategory = null;
   const home = $('homePage'); const screen = $('secondaryPage');
   if (page === 'Home') { setHomeHeader(true); home.hidden = false; screen.hidden = true; return; }
   setHomeHeader(false);

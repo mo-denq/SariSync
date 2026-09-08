@@ -2852,6 +2852,20 @@ select:focus-visible {
   font-size: 14px;
 }
 
+/* The rounded search container already indicates focus. Avoid a second,
+   rectangular outline inside it while retaining that keyboard focus cue. */
+.search-box input:focus,
+.search-box input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.category-item-card[role="button"] { cursor: pointer; }
+.category-item-card[role="button"]:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 3px;
+}
+
 .scan-button,
 .barcode-field button {
   background: var(--orange-soft);

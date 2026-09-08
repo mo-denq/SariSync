@@ -57,10 +57,33 @@ function render(list) {
   items.innerHTML = list.length ? list.map(product => `<article class="category-item-card"><div class="category-item-main">${productMark(product)}<div><strong>${product.name}</strong><span>Updated ${product.updated || 'recently'}${product.updatedBy ? ` by ${product.updatedBy}` : ''}</span></div></div><div class="category-item-price"><span>RETAIL</span><strong>${peso(product.retail)}</strong>${product.wholesale ? `<small>Wholesale ${peso(product.wholesale)}</small>` : ''}</div></article>`).join('') : `<div class="category-empty"><strong>No matching products</strong><span>Try another search term or add an item to this category.</span></div>`;
 }
 
+// Category cards open the shared, authenticated Price Lookup page. Product
+// IDs are rechecked against the loaded store list; URL data never grants access.
+function connectProductCards(list) {
+  items.querySelectorAll('.category-item-card').forEach((card, index) => {
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `View price and edit ${list[index].name}`);
+    const open = () => {
+      const destination = new URL('../../index.html', window.location.href);
+      destination.searchParams.set('product', list[index].id);
+      destination.searchParams.set('fromCategory', categoryName);
+      window.location.assign(destination.href);
+    };
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
+    });
+  });
+}
+
 document.getElementById('itemSearch').addEventListener('input', event => {
-  render(window.SariSyncSearchService.searchByName(
+  const matches = window.SariSyncSearchService.searchByName(
     allProducts,
     event.target.value
-  ));
+  );
+  render(matches);
+  connectProductCards(matches);
 });
 render(allProducts);
+connectProductCards(allProducts);

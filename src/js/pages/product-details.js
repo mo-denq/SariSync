@@ -35,7 +35,8 @@
       kicker: 'PRICE LOOKUP',
       title: product.name,
       description: product.category,
-      backTarget: 'Home'
+      backTarget: 'Home',
+      onBack: context.onBack
     });
     screen.insertAdjacentHTML('beforeend', `
       <div class="price-panel">
