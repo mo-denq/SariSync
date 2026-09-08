@@ -2,7 +2,7 @@
 
 ## What changed
 
-- `src/js/services/barcode.js`: Home click events are no longer mistaken for a form callback. A matching scan opens Price Lookup; an unmatched scan focuses name search with a message. Form scans still fill the barcode field without navigating away.
+- `src/js/services/barcode.js`: Home click events are no longer mistaken for a form callback. A matching scan opens Price Lookup; an unmatched scan shows a padded note below name search. Form scans still fill the barcode field without navigating away.
 - The scanner owns one camera stream. Closing, leaving the page, or hiding the app stops it. Late camera permission results are cancelled safely. Camera errors have readable messages and a retry button.
 - The pinned ZXing fallback receives a hints map. Normal “no barcode in this frame” exceptions are recognized using their stable kind, including in the minified library. This improves the non-native/iPhone path. QR codes remain excluded.
 - `src/js/pages/category.js`: category products can be opened by tap, click, Enter, or Space.
@@ -31,3 +31,12 @@ Automated tests use simulated cameras; they do not establish physical camera per
 Phone camera access requires a secure HTTPS site and browser permission. Focus, lighting, damaged labels, and device/browser support can affect results. The fallback library must load successfully; if it cannot, the scanner explains this and manual entry/name search remains available. A laptop camera may not focus on small barcodes as well as a rear phone camera.
 
 Lookup searches the currently loaded active store products. Archived products are not barcode matches. Save a newly assigned barcode before testing Home lookup. Keep manual barcode entry and name search as reliable alternatives.
+
+## September 8: mobile feedback refinements
+
+- Shared toasts wrap within the screen instead of forcing one long line. Longer messages stay visible longer, up to eight seconds.
+- Home, Browse, and category searches share the same white background, rounded control shape, focus highlight, and text size. Browser-native input styling is reset to prevent the gray inner field. Text inputs use 16px text to avoid focus zoom in supported mobile browsers.
+- An unmatched scan shows a short toast plus detailed guidance in a padded note. It does not automatically open the keyboard; tap search when ready.
+- A matched scan focuses the product heading and gently reveals the page. Reduced-motion preferences skip the animation.
+
+Phone checks after deployment: test at narrow widths, scan known and unknown barcodes, read the whole toast, tap Home/Browse/category search, and scan into an Edit form. Confirm no clipped messages or gray inner search field. Automated tests do not replace these visual/device checks.

@@ -138,7 +138,10 @@
        active price book. Members never receive this destructive-looking
        control. */
     const isOwner = String(window.SariSyncState.getSession()?.role || '').toLowerCase() === 'owner';
-    if (!isOwner) return;
+    if (!isOwner) {
+      screen.insertAdjacentHTML('beforeend', '<p class="permission-note">You can edit this product. Only the store owner can archive or restore products.</p>');
+      return;
+    }
 
     screen.insertAdjacentHTML('beforeend', `
       <section class="product-archive-section" aria-label="Archive product">

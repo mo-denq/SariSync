@@ -247,6 +247,12 @@
   }
 
   function openImportPicker() {
+    // Explain a member's shortcut attempt too; the protected import RPC remains
+    // the authority if membership changes after this page was loaded.
+    if (String(window.SariSyncState?.getSession?.()?.role || '').toLowerCase() === 'member') {
+      window.SariSyncToast.show('Only the store owner can import products.');
+      return;
+    }
     serviceContext?.importInput?.click();
   }
 

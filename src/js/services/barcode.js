@@ -22,12 +22,12 @@
     detector = null;
     reader = null;
   }
-  function stopScanner() {
+  function stopScanner(restoreFocus = true) {
     generation += 1;
     releaseCamera();
     callback = null;
     get('scannerPanel').hidden = true;
-    opener?.focus?.();
+    if (restoreFocus) opener?.focus?.();
   }
   function openFallbackScanner() {
     const ZXing = window.ZXingBrowser;
@@ -125,20 +125,35 @@
   function handleBarcode(value) {
     const code = String(value).trim();
     const onScan = callback;
-    stopScanner();
+    // Do not refocus the Home input on a match: that flashes the phone keyboard.
+    stopScanner(Boolean(onScan));
     if (onScan) { onScan(code); return; }
     const product = window.SariSyncSearchService.findByBarcode(window.SariSyncProductRepository.getAllProducts(), code);
     window.SariSyncNavigation.goTo('Home');
     if (product) {
-      window.SariSync.showProduct(product.id);
+      window.SariSync.showProduct(product.id, { fromBarcode: true });
+      const page = get('secondaryPage');
+      const heading = page?.querySelector?.('h2');
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus({ preventScroll: true });
+      // Respect reduced-motion settings; never delay navigation behind animation.
+      if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        page?.animate?.([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 200, easing: 'ease-out' });
+      }
       window.SariSyncToast.show('Product found.');
     } else {
       get('searchInput').value = '';
       window.SariSync.searchProducts('');
-      get('searchInput').focus();
       const message = 'No product matches this barcode. Search by name, then edit the existing product to add its barcode.';
-      get('searchResults').textContent = message;
-      window.SariSyncToast.show(message);
+      // Keep detailed guidance in a padded note, and the temporary toast short.
+      const note = document.createElement('p');
+      note.className = 'search-feedback';
+      note.textContent = message;
+      note.tabIndex = -1;
+      get('searchResults').replaceChildren(note);
+      get('searchResults').scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+      note.focus({ preventScroll: true });
+      window.SariSyncToast.show('No barcode match. Search by product name.');
     }
   }
   get('scanButton').addEventListener('click', () => openScanner());

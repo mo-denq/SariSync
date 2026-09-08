@@ -69,6 +69,11 @@
       description: 'Add, rename, archive, or restore your store categories.',
       backTarget: 'Settings'
     });
+    // Explain direct access before loading controls. Database checks still apply.
+    if (String(window.SariSyncState.getSession()?.role || '').toLowerCase() !== 'owner') {
+      screen.insertAdjacentHTML('beforeend', '<p class="permission-note">Only the store owner can manage categories. You can still browse and edit products.</p>');
+      return;
+    }
     screen.insertAdjacentHTML('beforeend', '<div id="categoryManageContent" class="category-manage-content"><p>Loading categories...</p></div>');
     const content = document.getElementById('categoryManageContent');
 

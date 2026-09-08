@@ -332,14 +332,17 @@ async function checkHomeAuthentication() {
     $('appShell').hidden = false;
     setConnectionStatus();
 
+    let guideRecoveryReady = false;
     try {
-      await syncPendingOfflineEdits();
+      const recovery = await syncPendingOfflineEdits();
+      guideRecoveryReady = !recovery?.pendingCount;
     } catch (error) {
       /* The edit remains in the device queue if a reconnect is brief or
          unstable. The next successful connection will try it again. */
       console.warn('Offline changes could not sync yet:', error);
     }
     openRequestedProduct();
+    if (guideRecoveryReady && !historyError) window.SariSyncQuickGuide?.showAfterLoad(session.user.id);
 
     /* Registering the device is a helpful audit detail, not a condition for
        looking up prices. If the five-device limit is reached, Home remains
@@ -509,7 +512,7 @@ function openRequestedProduct() {
   showProduct(id);
 }
 
-function showProduct(id) {
+function showProduct(id, options = {}) {
   const product = window.SariSyncProductRepository.findProductById(id);
   if (!product) return;
 
@@ -519,6 +522,7 @@ function showProduct(id) {
     homePage: $('homePage'),
     peso,
     setHomeHeader,
+    fromBarcode: options.fromBarcode === true,
     onBack: productReturnCategory ? () => {
       const name = productReturnCategory;
       productReturnCategory = null;

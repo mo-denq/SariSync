@@ -15,6 +15,12 @@
   and editing products remain the responsibility of their pages.
 */
 (function initialiseProductCardComponent() {
+  // Display saved text safely. Sizes remain in the full name: the current
+  // database loader does not supply a separate saved size/unit field.
+  const escapeText = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+  function label(product) {
+    return `<span class="product-card-label"><strong>${escapeText(product.name)}</strong><small>${escapeText(product.category)}</small></span>`;
+  }
   function mark(product) {
     return `
       <span class="product-mark" style="background:${product.tone || '#eef0ed'}" aria-hidden="true">
@@ -40,10 +46,7 @@
     return products.map(product => `
       <button class="browse-row" ${dataAttribute}="${product.id}" type="button">
         ${mark(product)}
-        <span>
-          <strong>${product.name}</strong>
-          <small>${product.category}</small>
-        </span>
+        ${label(product)}
         <span class="browse-price">${peso(product.retail)}</span>
       </button>
     `).join('');
@@ -62,10 +65,7 @@
     return products.map(product => `
       <button class="result-row" data-product="${product.id}" type="button">
         ${mark(product)}
-        <span>
-          <strong>${product.name}</strong>
-          <small>${product.category}</small>
-        </span>
+        ${label(product)}
         <span class="result-price">${peso(product.retail)}</span>
       </button>
     `).join('');
@@ -90,6 +90,7 @@
   }
 
   window.SariSyncProductCard = {
+    label,
     mark,
     browseRows,
     searchRows,

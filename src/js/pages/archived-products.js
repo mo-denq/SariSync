@@ -45,6 +45,11 @@
       description: 'Restore an item to return it to the active price book.',
       backTarget: 'Settings'
     });
+    // This explains direct navigation; the protected RPC still enforces access.
+    if (String(window.SariSyncState.getSession()?.role || '').toLowerCase() !== 'owner') {
+      screen.insertAdjacentHTML('beforeend', '<p class="permission-note">Only the store owner can view and restore archived products.</p>');
+      return;
+    }
     screen.insertAdjacentHTML('beforeend', `
       <section id="archivedProductsContent" aria-live="polite">
         <p class="archived-products-note">Archived items are hidden from Home, Browse, and Recent Updates. Their saved price history remains safe.</p>
@@ -87,12 +92,12 @@
           } catch (error) {
             button.disabled = false;
             button.textContent = originalLabel;
-            window.SariSyncToast.show(error?.message || 'Unable to restore this product. Please try again.');
+            window.SariSyncToast.show(window.SariSyncFeedback.messageFor(error, 'Unable to restore this product. Please try again.'));
           }
         });
       });
     } catch (error) {
-      content.innerHTML = `<div class="archived-products-empty"><strong>Archived products are unavailable</strong><br />${escapeHtml(error?.message || 'Refresh and try again.')}</div>`;
+      content.innerHTML = `<div class="archived-products-empty"><strong>Archived products are unavailable</strong><br />${escapeHtml(window.SariSyncFeedback.messageFor(error, 'Refresh and try again.'))}</div>`;
     }
   }
 

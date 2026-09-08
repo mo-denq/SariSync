@@ -5,7 +5,7 @@
   RESPONSIBILITIES:
   - Place a message inside the existing #toast element.
   - Show the toast using the existing CSS class.
-  - Keep the message visible for 2.6 seconds.
+  - Give longer messages more reading time, up to eight seconds.
   - Reset the timer when a new message appears before the old one closes.
 
   This file controls behavior only. The existing toast appearance remains in
@@ -19,13 +19,14 @@
     const toast = document.getElementById('toast');
     if (!toast) return;
 
-    toast.textContent = message;
+    const text = String(message ?? '');
+    toast.textContent = text;
     toast.classList.add('show');
 
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       toast.classList.remove('show');
-    }, displayDuration);
+    }, Math.max(displayDuration, Math.min(8000, text.length * 55)));
   }
 
   window.SariSyncToast = { show };

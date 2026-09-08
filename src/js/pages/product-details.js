@@ -38,6 +38,19 @@
       backTarget: 'Home',
       onBack: context.onBack
     });
+    // Only scan-originated lookups offer mismatch recovery. Never alter data.
+    if (context.fromBarcode) {
+      screen.insertAdjacentHTML('beforeend', '<button type="button" class="text-button barcode-recovery" id="barcodeMismatch">Wrong item? Search by name</button>');
+      screen.querySelector('#barcodeMismatch').addEventListener('click', () => {
+        window.SariSyncNavigation.goTo('Home');
+        const search = document.getElementById('searchInput');
+        search.value = '';
+        window.SariSync.searchProducts('');
+        search.scrollIntoView({ block: 'center', behavior: 'auto' });
+        search.focus({ preventScroll: true });
+        window.SariSyncToast.show('Search for the correct product by name.');
+      });
+    }
     screen.insertAdjacentHTML('beforeend', `
       <div class="price-panel">
         <small>RETAIL PRICE</small>

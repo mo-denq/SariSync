@@ -54,7 +54,7 @@ accent.classList.add(
 
 function productMark(product) { return `<span class="product-mark" style="background:${product.tone || '#eef0ed'}" aria-hidden="true"><i></i><i></i><i></i></span>`; }
 function render(list) {
-  items.innerHTML = list.length ? list.map(product => `<article class="category-item-card"><div class="category-item-main">${productMark(product)}<div><strong>${product.name}</strong><span>Updated ${product.updated || 'recently'}${product.updatedBy ? ` by ${product.updatedBy}` : ''}</span></div></div><div class="category-item-price"><span>RETAIL</span><strong>${peso(product.retail)}</strong>${product.wholesale ? `<small>Wholesale ${peso(product.wholesale)}</small>` : ''}</div></article>`).join('') : `<div class="category-empty"><strong>No matching products</strong><span>Try another search term or add an item to this category.</span></div>`;
+  items.innerHTML = list.length ? list.map(product => `<article class="category-item-card"><div class="category-item-main">${productMark(product)}${window.SariSyncProductCard.label(product)}</div><div class="category-item-price"><span>RETAIL</span><strong>${peso(product.retail)}</strong></div></article>`).join('') : `<div class="category-empty"><strong>No matching products</strong><span>Try another search term or add an item to this category.</span></div>`;
 }
 
 // Category cards open the shared, authenticated Price Lookup page. Product

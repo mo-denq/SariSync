@@ -87,9 +87,9 @@
         <div class="settings-card">
           <div>
             <strong>Manage categories</strong>
-            <span>${categoryCount} store categories</span>
+            <span>${isOwner ? `${categoryCount} store categories` : 'Only the store owner can manage categories.'}</span>
           </div>
-          <button id="openCategoryManagement" type="button" aria-label="Manage categories">›</button>
+          <button id="openCategoryManagement" type="button" aria-label="Manage categories" ${isOwner ? '' : 'disabled'}>›</button>
         </div>
 
         <div class="settings-subheading">Store Management</div>
@@ -104,9 +104,9 @@
         <div class="settings-card">
           <div>
             <strong>Import pricelist</strong>
-            <span>Upload CSV or Excel price data</span>
+            <span>${isOwner ? 'Upload CSV or Excel price data' : 'Only the store owner can import products.'}</span>
           </div>
-          <button id="secondaryImportButton" type="button">›</button>
+          <button id="secondaryImportButton" type="button" aria-label="Import pricelist" ${isOwner ? '' : 'disabled'}>›</button>
         </div>
         <p id="csvImportStatus" class="settings-import-status" hidden role="status"></p>
 
@@ -117,7 +117,10 @@
           </div>
           <button id="secondaryBackupButton" type="button">›</button>
         </div>
+        <div class="settings-card"><div><strong>Quick app guide</strong><span>Search, Scan, Edit, and Save—a short refresher.</span></div><button id="openQuickGuide" type="button" aria-label="Open quick app guide">›</button></div>
       </div>`);
+
+    document.getElementById('openQuickGuide')?.addEventListener('click', () => window.SariSyncQuickGuide.openFromSettings());
 
     document.getElementById('copyStoreCode')?.addEventListener('click', async () => {
       try {
@@ -130,7 +133,7 @@
 
     document.getElementById('secondaryImportButton')?.addEventListener(
       'click',
-      csvService.openImportPicker
+      () => { if (isOwner) csvService.openImportPicker(); else window.SariSyncToast.show('Only the store owner can import products.'); }
     );
     document.getElementById('secondaryBackupButton')?.addEventListener(
       'click',
@@ -147,6 +150,7 @@
     });
 
     document.getElementById('openCategoryManagement')?.addEventListener('click', () => {
+      if (!isOwner) { window.SariSyncToast.show('Only the store owner can manage categories.'); return; }
       if (typeof onCategoryManagement === 'function') {
         onCategoryManagement();
         return;

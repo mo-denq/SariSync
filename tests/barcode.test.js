@@ -9,10 +9,12 @@ function setup(options = {}) {
   const elements = {}, timers = new Map(), calls = [];
   let seq = 0, stopped = 0;
   const document = { activeElement: null, body: { insertAdjacentHTML() {} }, addEventListener() {},
+    createElement() { return { focus() { document.activeElement = this; } }; },
     getElementById(id) {
       return elements[id] ||= { hidden: false, readyState: 4, videoWidth: 640, value: '',
         events: {}, addEventListener(name, fn) { this.events[name] = fn; },
-        focus() { document.activeElement = this; }, setAttribute() {}, async play() {} };
+        focus() { document.activeElement = this; }, setAttribute() {}, async play() {},
+        replaceChildren(child) { this.child = child; this.textContent = child.textContent; } };
     }
   };
   const stream = { getTracks: () => [{ stop: () => stopped++ }] };
@@ -38,7 +40,7 @@ function setup(options = {}) {
     navigator: { mediaDevices: { getUserMedia: options.acquire || (async () => stream) } },
     setTimeout: fn => { timers.set(++seq, fn); return seq; }, clearTimeout: id => timers.delete(id)
   });
-  return { window, elements, calls, stream, stopped: () => stopped,
+  return { window, document, elements, calls, stream, stopped: () => stopped,
     tick: async () => { await new Promise(setImmediate); const fns = [...timers.values()]; timers.clear(); for (const fn of fns) await fn(); }, timers };
 }
 test('Home click event scans and opens Price Lookup instead of being called as a function', async () => {
@@ -54,10 +56,27 @@ test('Form scanning preserves leading zeros and does not navigate away', async (
   await s.window.SariSyncBarcode.open(code => { value = code; }); await s.tick();
   assert.equal(value, '0480166860225'); assert.equal(s.calls.length, 0);
 });
-test('Unmatched barcode focuses name search and explains the next action', async () => {
+test('Unmatched barcode focuses readable guidance without opening the keyboard', async () => {
   const s = setup({ missing: true }); await s.window.SariSyncBarcode.open(); await s.tick();
   assert.match(s.elements.searchResults.textContent, /Search by name/);
+  assert.equal(s.elements.searchResults.child.className, 'search-feedback');
+  assert.equal(s.document.activeElement, s.elements.searchResults.child);
+  assert.ok(s.calls.some(([type, message]) => type === 'toast' && message === 'No barcode match. Search by product name.'));
   assert.equal(s.calls.some(([type]) => type === 'product'), false);
+});
+
+test('Long toast messages get more reading time and replace the old timer', () => {
+  let delay, cleared, callback;
+  const toast = { classList: { add() {}, remove() {} } };
+  const context = { window: { SariSyncConstants: { TOAST_DURATION_MS: 2600 } },
+    document: { getElementById: () => toast },
+    setTimeout(fn, ms) { callback = fn; delay = ms; return 7; },
+    clearTimeout(id) { cleared = id; } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/js/components/toast.js'), 'utf8'), context);
+  context.window.SariSyncToast.show('Saved.'); assert.equal(delay, 2600);
+  context.window.SariSyncToast.show('A'.repeat(200));
+  assert.equal(delay, 8000); assert.equal(cleared, 7); assert.equal(toast.textContent.length, 200);
+  callback();
 });
 test('Fallback works without native BarcodeDetector', async () => {
   const s = setup({ fallback: true }); await s.window.SariSyncBarcode.open(); await s.tick();
