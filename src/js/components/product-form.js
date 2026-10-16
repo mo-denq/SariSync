@@ -180,10 +180,25 @@
             });
           }
 
-          await Promise.resolve(onSaved?.(saveResult));
+          if (!saveResult?.queued) {
+            window.SariSyncProductRepository.upsertSavedProduct({
+              ...product, ...databaseValues,
+              id: product?.id || saveResult?.product_id,
+              categoryId: selectedCategory.id,
+              category: selectedCategory.name,
+              updated: 'Just saved', updatedBy: activeDeviceName,
+              updatedAt: new Date().toISOString()
+            });
+          }
+          // A confirmed save is not a failed save if its following read fails.
+          const refreshResult = await Promise.resolve(onSaved?.(saveResult));
           window.SariSyncNavigation.goTo('Home');
           window.SariSyncToast.show(saveResult?.queued
             ? 'Saved on this device. It will sync when you reconnect.'
+            : refreshResult?.ok === false
+            ? 'Saved successfully, but the screen could not refresh. Tap Refresh—do not add it again.'
+            : refreshResult?.partial
+            ? 'Saved successfully. Price history could not refresh yet; tap Refresh to retry.'
             : isNew
             ? 'Product added to the shared price book'
             : 'Product details saved to the shared price book');

@@ -31,6 +31,14 @@
     return cloudDataLoaded;
   }
 
+  // Called only after the server has accepted a save, using its real UUID.
+  function upsertSavedProduct(product) {
+    if (!product?.id) return;
+    const existing = findProductById(product.id);
+    if (existing) Object.assign(existing, product);
+    else products.unshift(product);
+  }
+
   function findProductById(productId) {
     return products.find(product =>
       String(product.id) === String(productId)
@@ -61,6 +69,7 @@
   }
 
   window.SariSyncProductRepository = {
+    upsertSavedProduct,
     getAllProducts,
     replaceAllProducts,
     isCloudDataLoaded,

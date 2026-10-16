@@ -75,7 +75,7 @@
             <p class="subtle">Your shared price book is up to date.</p>
           </div>
           <button class="sync-status" id="syncButton" type="button" aria-live="polite">
-            <span class="sync-dot"></span><span id="syncText">Synced</span>
+            <span class="sync-dot"></span><span id="syncText">Refresh</span>
           </button>
         </section>
 
@@ -159,13 +159,13 @@
   <script src="src/js/models/category.js"></script>
   <script src="src/js/models/product.js"></script>
   <script src="src/js/services/data.js"></script>
-  <script src="src/js/repositories/product-repository.js?v=20260814-real-product-loading"></script>
+  <script src="src/js/repositories/product-repository.js?v=20260913-refresh"></script>
   <script src="src/js/services/utils.js?v=20260810-store-name-format"></script>
   <script src="src/js/storage/local-storage.js"></script>
   <script src="src/js/services/offline-price-book-service.js?v=20260827-offline-cache"></script>
   <script src="src/js/services/offline-edit-queue-service.js?v=20260829-offline-product-edits"></script>
   <script src="src/js/services/feedback-service.js?v=20260822-friendly-errors"></script>
-  <script src="src/js/services/auth-session.js?v=20260808-home-auth-guard"></script>
+  <script src="src/js/services/auth-session.js?v=20260913-refresh"></script>
   <script src="src/js/services/family-access-service.js?v=20260810-family-access"></script>
   <script src="src/js/state/store.js"></script>
   <script src="src/js/services/responsive.js"></script>
@@ -173,7 +173,8 @@
   <script src="src/js/services/page-transition.js?v=20260731-back-transition"></script>
   <script src="src/js/components/toast.js?v=20260908-mobile-feedback"></script>
   <script src="src/js/services/product-data-service.js?v=20260817-archive-retrieval"></script>
-  <script src="src/js/services/realtime-service.js?v=20260817-realtime-sync"></script>
+  <script src="src/js/services/realtime-service.js?v=20260913-refresh"></script>
+  <script src="src/js/services/refresh-service.js?v=20260913-refresh"></script>
   <script src="src/js/services/profile-data-service.js?v=20260815-connected-profile"></script>
   <script src="src/js/services/category-data-service.js?v=20260815-category-complete"></script>
   <script src="src/js/services/device-service.js?v=20260815-device-attribution"></script>
@@ -181,13 +182,13 @@
   <script src="src/js/components/product-card.js?v=20260908-usability"></script>
   <script src="src/js/components/quick-guide.js?v=20260908-usability"></script>
   <script src="src/js/components/page-header.js"></script>
-  <script src="src/js/components/product-form.js?v=20260815-phase10-complete"></script>
+  <script src="src/js/components/product-form.js?v=20260913-refresh"></script>
   <script src="src/js/components/price-pulse.js?v=20260815-price-history-retry"></script>
   <script src="src/js/components/category-preview.js"></script>
   <script src="src/js/pages/browse.js?v=20260731-preserve-category-scroll"></script>
   <script src="src/js/pages/updates.js?v=20260815-price-history-retry"></script>
   <script src="src/js/pages/category-management.js?v=20260908-usability"></script>
-  <script src="src/js/pages/settings.js?v=20260908-usability"></script>
+  <script src="src/js/pages/settings.js?v=20260913-refresh"></script>
   <script src="src/js/pages/archived-products.js?v=20260908-usability"></script>
   <script src="src/js/pages/family-access.js?v=20260808-family-access"></script>
   <script src="src/js/pages/profile.js"></script>
@@ -196,7 +197,7 @@
   <script src="src/js/pages/update-price.js"></script>
   <!-- Version marker makes browsers fetch the newest custom archive dialog. -->
   <script src="src/js/pages/edit-product.js?v=20260908-usability"></script>
-  <script src="src/js/pages/home.js?v=20260908-usability"></script>
+  <script src="src/js/pages/home.js?v=20260913-refresh"></script>
   <script src="src/js/navigation.js?v=20260731-back-transition"></script>
   <!-- Barcode fallback for browsers without the built-in BarcodeDetector.
        The version is pinned so a future CDN release cannot silently alter the scanner. -->

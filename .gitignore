@@ -2,3 +2,5 @@ node_modules/
 __pycache__/
 .env
 .env.*
+output/resume/Yasmien_Escalante_Resume_2026_Revised.pdf
+output/resume/Yasmien_Escalante_Resume_2026_Revised.docx

@@ -70,10 +70,10 @@
 
         <div class="settings-card">
           <div>
-            <strong>Cloud sync</strong>
-            <span>Keep products synced across devices</span>
+            <strong>Refresh price book</strong>
+            <span>Load the latest products and prices on this device.</span>
           </div>
-          <button type="button" data-setting="Cloud sync">›</button>
+          <button id="settingsRefresh" type="button" aria-label="Refresh price book">›</button>
         </div>
 
         <div class="settings-card">
@@ -121,6 +121,13 @@
       </div>`);
 
     document.getElementById('openQuickGuide')?.addEventListener('click', () => window.SariSyncQuickGuide.openFromSettings());
+    document.getElementById('settingsRefresh')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Refreshing…';
+      try { await window.SariSyncRefresh.request('manual'); }
+      finally { button.disabled = false; button.textContent = '›'; }
+    });
 
     document.getElementById('copyStoreCode')?.addEventListener('click', async () => {
       try {

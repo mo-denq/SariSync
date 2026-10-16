@@ -94,9 +94,9 @@ function setConnectionStatus({ offline = false, savedAt = null } = {}) {
   if (!button || !label) return;
 
   button.classList.toggle('is-offline', offline);
-  button.disabled = offline;
+  button.disabled = false;
   button.title = offline ? 'Offline: showing the latest saved copy on this device.' : '';
-  label.textContent = offline ? 'Offline' : 'Synced';
+  label.textContent = offline ? 'Offline · Refresh' : 'Refresh';
 
   if (offline && savedAt) {
     window.SariSyncToast?.show(`Offline: showing prices saved ${window.SariSyncOfflinePriceBook.formatSavedAt(savedAt)}.`);
@@ -174,9 +174,8 @@ async function refreshPriceBookAfterProductSave(saveResult = null) {
     return;
   }
 
-  const { priceBook, recentPriceUpdates, priceHistoryError: historyError } = await loadPriceBookAndPulse();
-  applyLoadedPriceBook(priceBook, recentPriceUpdates, historyError);
   renderHome();
+  return window.SariSyncRefresh.request('save');
 }
 
 /* Runs after a normal cloud load or an online event. It sends each stored
@@ -186,9 +185,7 @@ async function syncPendingOfflineEdits() {
   const result = await window.SariSyncOfflineEditQueue?.flushForCurrentUser?.();
   if (!result?.syncedCount) return result;
 
-  const { priceBook, recentPriceUpdates, priceHistoryError: historyError } = await loadPriceBookAndPulse();
-  applyLoadedPriceBook(priceBook, recentPriceUpdates, historyError);
-  renderHome();
+  await window.SariSyncRefresh.request('queue');
   window.SariSyncToast?.show(
     `${result.syncedCount} offline ${result.syncedCount === 1 ? 'change' : 'changes'} synced to the shared price book.`
   );
@@ -218,11 +215,22 @@ function refreshOpenProductCategorySelector() {
 function refreshVisibleStoreViewAfterRealtime() {
   const home = $('homePage');
   const screen = $('secondaryPage');
+  renderHome(); // Refresh hidden Home cards, never the active form.
+  // Do not touch any field, selection, or confirmation belonging to an edit.
+  if (screen?.querySelector('form') || document.querySelector('dialog[open], .product-archive-confirm-overlay, .category-confirm-overlay')) return;
+  const scrollArea = $('appShell')?.querySelector('.app');
+  const savedScroll = scrollArea?.scrollTop;
 
   if (!home?.hidden) {
-    renderHome();
+    searchProducts($('searchInput').value);
   } else if (screen?.querySelector('#browseList')) {
+    const query = screen.querySelector('#browseSearch')?.value || '';
+    const focused = document.activeElement === screen.querySelector('#browseSearch');
     window.SariSyncBrowse.render({ screen, products, categories });
+    const input = screen.querySelector('#browseSearch');
+    input.value = query;
+    input.dispatchEvent(new Event('input'));
+    if (focused) input.focus({ preventScroll: true });
   } else if (screen?.querySelector('.update-list')) {
     window.SariSyncUpdates.render({
       screen,
@@ -234,20 +242,56 @@ function refreshVisibleStoreViewAfterRealtime() {
     });
   } else if (screen?.querySelector('#updateProducts')) {
     renderUpdatePage();
+  } else if (screen?.querySelector('#editProduct')) {
+    const id = appState.getSelectedProduct()?.id;
+    if (window.SariSyncProductRepository.findProductById(id)) {
+      showProduct(id, { fromBarcode: Boolean(screen.querySelector('#barcodeMismatch')) });
+    }
   }
 
-  // Add Product and Edit Item keep their typed values, while their category
-  // dropdown receives the newly active categories from the other device.
-  refreshOpenProductCategorySelector();
+  // Open forms returned above: all their typed fields and selections stay intact.
+  if (scrollArea) scrollArea.scrollTop = savedScroll;
   document.dispatchEvent(new CustomEvent('sariSync:store-data-refreshed'));
 }
 
 async function refreshPriceBookFromRealtime() {
-  const { priceBook, recentPriceUpdates, priceHistoryError: historyError } = await loadPriceBookAndPulse();
-  applyLoadedPriceBook(priceBook, recentPriceUpdates, historyError);
-  refreshVisibleStoreViewAfterRealtime();
-  window.SariSyncToast.show('Price book updated by another device.');
+  return window.SariSyncRefresh.request('live');
 }
+
+function reconnectPriceBook() {
+  window.SariSyncRealtime?.start?.({ onStoreChange: refreshPriceBookFromRealtime })
+    .catch(() => { $('syncButton').title = 'Live connection unavailable. Use Refresh for the latest data.'; });
+}
+window.SariSyncRefresh.configure({
+  ready: () => Boolean(appState.getSession()) && !$('appShell')?.hidden && $('homeAuthGuard')?.hidden,
+  load: async () => {
+    const session = await window.SariSyncAuthSession.getCachedSession();
+    if (!session?.user?.id) throw new Error('Sign in again to refresh.');
+    const result = await loadPriceBookAndPulse();
+    // Read the outbox after the fetch; keep unsent edits visible without
+    // uploading them as a side effect of the manual Refresh button.
+    const pending = window.SariSyncOfflineEditQueue?.readQueue(appState.getSession()?.storeCode, session.user.id) || [];
+    pending.forEach(entry => {
+      const product = result.priceBook.products.find(item => String(item.id) === String(entry.productId));
+      if (product) Object.assign(product, entry.product, { id: product.id, categoryId: entry.categoryId, updated: 'Pending sync' });
+    });
+    return result;
+  },
+  apply: ({ priceBook, recentPriceUpdates, priceHistoryError: historyError }) => {
+    // Preserve pending local values until the existing queue has saved them.
+    applyLoadedPriceBook(priceBook, historyError ? priceUpdates : recentPriceUpdates, historyError);
+    refreshVisibleStoreViewAfterRealtime();
+  },
+  status: state => {
+    const button = $('syncButton');
+    button.disabled = state === 'loading';
+    button.setAttribute('aria-busy', String(state === 'loading'));
+    $('syncText').textContent = ({ loading: 'Refreshing…', offline: 'Offline · Refresh', error: 'Retry refresh', partial: 'Retry history' })[state] || 'Refresh';
+    button.title = state === 'ready' ? 'Latest data loaded on this device. Refresh again anytime.' : 'Refresh products, categories, and price history.';
+  },
+  notify: message => window.SariSyncToast.show(message),
+  reconnect: reconnectPriceBook
+});
 
 // HOME GREETING: Uses the device's local clock, so it stays correct throughout
 // the day without asking a family member to refresh or change it manually.
@@ -373,10 +417,8 @@ async function checkHomeAuthentication() {
 
 $('homeAuthRetry').addEventListener('click', checkHomeAuthentication);
 window.addEventListener('online', () => {
-  if (!$('appShell')?.hidden) {
-    window.SariSyncToast?.show('Back online. Refreshing your price book...');
-    checkHomeAuthentication();
-  }
+  // The shared service refreshes visible data without rerunning the auth screen.
+  if (!$('appShell')?.hidden) syncPendingOfflineEdits().catch(() => {});
 });
 window.addEventListener('offline', () => {
   if (!$('appShell')?.hidden) setConnectionStatus({ offline: true });
@@ -643,7 +685,7 @@ $('searchInput').addEventListener('input', e => searchProducts(e.target.value));
 $('searchInput').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; searchProducts(''); } });
 $('addButton').addEventListener('click', renderAddProductPage);
 $('avatarInitials').addEventListener('click', renderProfilePage);
-$('syncButton').addEventListener('click', () => { $('syncText').textContent = 'Syncing...'; setTimeout(() => { $('syncText').textContent = 'Synced'; window.SariSyncToast.show('All family devices are up to date'); }, 650); });
+$('syncButton').addEventListener('click', () => { reconnectPriceBook(); window.SariSyncRefresh.request('manual'); });
 window.SariSyncCsvService.initialise({
   importInput: $('importInput'),
   products

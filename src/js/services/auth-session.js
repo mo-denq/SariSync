@@ -72,6 +72,7 @@
   }
 
   async function signOut() {
+    window.SariSyncRefresh?.stop?.();
     // Close the live store listener before ending the account session. This
     // avoids leaving an unnecessary connection open after Sign out.
     await window.SariSyncRealtime?.stop?.();

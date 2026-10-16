@@ -20,6 +20,8 @@
   let activeStoreId = null;
   let pendingRefresh = null;
   let refreshHandler = null;
+  let connectionStatus = 'CLOSED', starting = null, generation = 0;
+  let retryTimer = null, retryDelay = 1500;
 
   function getClient() {
     return window.SariSyncAuthSession?.getClient?.() || null;
@@ -54,6 +56,11 @@
   }
 
   async function stop() {
+    generation++;
+    window.clearTimeout(retryTimer);
+    retryTimer = null;
+    starting = null;
+    connectionStatus = 'CLOSED';
     clearPendingRefresh();
     activeStoreId = null;
     refreshHandler = null;
@@ -64,20 +71,35 @@
     await getClient()?.removeChannel?.(currentChannel);
   }
 
-  async function start({ onStoreChange, debounceMs = DEFAULT_DEBOUNCE_MS } = {}) {
+  function start(options = {}) {
+    if (options.onStoreChange) refreshHandler = options.onStoreChange;
+    if (starting) return starting;
+    const token = generation;
+    const work = startConnection(options, token);
+    starting = work;
+    work.finally(() => { if (starting === work) starting = null; }).catch(() => {});
+    return work;
+  }
+  async function startConnection({ onStoreChange, debounceMs = DEFAULT_DEBOUNCE_MS } = {}, token) {
     const client = getClient();
     if (!client) throw new Error('Your signed-in account is not ready. Refresh and try again.');
 
     const storeId = await getCurrentStoreId(client);
+    if (token !== generation) return false;
     if (!storeId) return false;
 
     // Calling start again after a screen refresh reuses the existing listener.
-    if (channel && activeStoreId === storeId) {
+    if (channel && activeStoreId === storeId && ['SUBSCRIBED', 'CONNECTING'].includes(connectionStatus)) {
       refreshHandler = onStoreChange || refreshHandler;
       return true;
     }
 
-    await stop();
+    window.clearTimeout(retryTimer);
+    clearPendingRefresh();
+    const old = channel;
+    channel = null;
+    if (old) await client.removeChannel(old);
+    if (token !== generation) return false;
     activeStoreId = storeId;
     refreshHandler = onStoreChange || null;
 
@@ -91,16 +113,30 @@
       );
     });
 
-    channel = nextChannel.subscribe(status => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+    connectionStatus = 'CONNECTING';
+    channel = nextChannel;
+    nextChannel.subscribe(status => {
+      if (token !== generation || channel !== nextChannel) return;
+      connectionStatus = status;
+      if (status === 'SUBSCRIBED') {
+        window.clearTimeout(retryTimer);
+        retryDelay = 1500;
+        queueStoreRefresh({ reconnected: true }, debounceMs);
+      }
+      if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
         console.warn('SariSync real-time connection status:', status);
+        window.clearTimeout(retryTimer);
+        retryTimer = window.setTimeout(() => {
+          if (token === generation && !document.hidden && navigator.onLine !== false) start({ onStoreChange: refreshHandler }).catch(() => {});
+        }, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 30000);
       }
     });
     return true;
   }
 
   // Closing the tab should also close the browser's live connection promptly.
-  window.addEventListener?.('pagehide', () => { stop(); });
+  window.addEventListener?.('pagehide', () => { stop().catch(() => {}); });
 
   window.SariSyncRealtime = { start, stop };
 })();
